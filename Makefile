@@ -5,7 +5,7 @@
 #   bpf/     clang -target bpf -> splice.bpf.o (+ skeleton)
 #   ctl/     host cc + libbpf  -> tcp-splice-ctl   (consumes bpf/ skeleton)
 
-.PHONY: all module bpf ctl test clean
+.PHONY: all module bpf ctl test clean deb
 
 all: module bpf ctl
 
@@ -21,6 +21,11 @@ ctl: bpf
 
 test:
 	./tests/test_loopback.sh
+
+# Package the already-built module/ctl into a .deb (fixed/appliance kernel).
+# Build (make module ctl) and sign the module first; see packaging/README.md.
+deb:
+	sh packaging/make-deb.sh
 
 clean:
 	$(MAKE) -C module clean

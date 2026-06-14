@@ -1,0 +1,23 @@
+#!/bin/sh
+set -e
+
+KVER=@KVER@
+
+case "$1" in
+configure)
+	# Refresh modules.dep so modprobe can find the module in .../extra/.
+	depmod -a "$KVER" || true
+	systemctl daemon-reload || true
+	systemctl enable tcp-splice.service >/dev/null 2>&1 || true
+	# Start now only if we are running the kernel the module was built for;
+	# otherwise the service starts automatically after booting into it.
+	if [ "$(uname -r)" = "$KVER" ]; then
+		systemctl start tcp-splice.service || true
+	else
+		echo "tcp-splice: built for kernel $KVER but running $(uname -r);" >&2
+		echo "            it will start automatically after booting into $KVER." >&2
+	fi
+	;;
+esac
+
+exit 0

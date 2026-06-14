@@ -1,0 +1,19 @@
+[Unit]
+Description=TCP loopback splice (co-located TCP acceleration)
+Documentation=https://github.com/multikernel/tcp_splice
+# Bring it up early, before the workloads whose connections it should splice.
+DefaultDependencies=no
+After=sysinit.target local-fs.target
+Before=network-pre.target
+Wants=network-pre.target
+ConditionPathExists=/usr/sbin/tcp-splice-ctl
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/tcp-splice-start
+ExecStop=/usr/sbin/tcp-splice-ctl disable
+ExecStopPost=-/sbin/rmmod tcp_splice
+
+[Install]
+WantedBy=multi-user.target

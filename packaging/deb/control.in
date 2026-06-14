@@ -1,0 +1,17 @@
+Package: tcp-splice
+Version: @VERSION@
+Architecture: @ARCH@
+Maintainer: Cong Wang <cwang@multikernel.io>
+Section: net
+Priority: optional
+@DEPENDS@
+Description: TCP loopback splice (co-located TCP acceleration)
+ Accelerates co-located TCP - loopback and same-host container sidecars - by
+ splicing two locally-connected TCP sockets through an in-kernel ring,
+ bypassing the skb/softirq/TCP-receive path while leaving the real TCP
+ connection intact.
+ .
+ This package ships a prebuilt kernel module for kernel @KVER@ (it refuses to
+ load on any other kernel via vermagic), the tcp-splice-ctl control tool, and a
+ systemd service that loads the module and applies the policy in
+ /etc/tcp-splice/config.

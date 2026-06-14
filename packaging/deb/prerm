@@ -1,0 +1,11 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+remove|deconfigure)
+	systemctl disable --now tcp-splice.service >/dev/null 2>&1 || true
+	rmmod tcp_splice 2>/dev/null || true
+	;;
+esac
+
+exit 0

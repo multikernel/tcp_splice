@@ -1,0 +1,20 @@
+#!/bin/sh
+# Load tcp_splice and apply the policy from /etc/tcp-splice/config.
+# Run by tcp-splice.service (ExecStart).
+set -e
+
+CONF=/etc/tcp-splice/config
+[ -r "$CONF" ] && . "$CONF"
+: "${CGROUP:=/sys/fs/cgroup}"
+
+# Load the module, seeding the ring size if configured (a module parameter, so it
+# must be set at load time to take effect for the connections spliced afterwards).
+modprobe tcp_splice ${RING_KBYTES:+ring_kbytes=$RING_KBYTES}
+
+# Build the enable command from the config.
+set -- enable --cgroup "$CGROUP"
+[ "${LOOPBACK_ONLY:-1}" = "1" ] && set -- "$@" --loopback-only
+[ -n "$PORTS" ]        && set -- "$@" --ports "$PORTS"
+[ -n "$BUSY_POLL_US" ] && set -- "$@" --busy-poll-us "$BUSY_POLL_US"
+
+exec /usr/sbin/tcp-splice-ctl "$@"
