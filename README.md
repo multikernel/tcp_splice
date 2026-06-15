@@ -124,12 +124,12 @@ a level that covers them. The cgroup-v2 root covers everything:
 
 ```sh
 # enable for everything under the cgroup-v2 root, loopback flows only, port 6379
-sudo ctl/tcp-splice-ctl enable --cgroup /sys/fs/cgroup --loopback-only --ports 6379
+sudo /usr/sbin/tcp-splice-ctl enable --cgroup /sys/fs/cgroup --loopback-only --ports 6379
 
-sudo ctl/tcp-splice-ctl status
+sudo /usr/sbin/tcp-splice-ctl status
 # tcp_splice: enabled (loopback_only=1, ports=6379)
 
-sudo ctl/tcp-splice-ctl disable
+sudo /usr/sbin/tcp-splice-ctl disable
 ```
 
 Options for `enable`:
@@ -170,7 +170,7 @@ on every socket:
 ```sh
 sudo sysctl -w net.core.busy_read=50
 # or, equivalently, via the control tool:
-sudo ctl/tcp-splice-ctl enable --cgroup /sys/fs/cgroup --busy-poll-us 50
+sudo /usr/sbin/tcp-splice-ctl enable --cgroup /sys/fs/cgroup --busy-poll-us 50
 ```
 
 `0` (default) disables it. An application can also opt in per-socket with
@@ -193,7 +193,7 @@ sudo insmod module/tcp_splice.ko ring_kbytes=256
 # or at runtime (applies to connections spliced afterwards)
 echo 256 | sudo tee /sys/module/tcp_splice/parameters/ring_kbytes
 # or via the control tool
-sudo ctl/tcp-splice-ctl enable --cgroup /sys/fs/cgroup --ring-kbytes 256
+sudo /usr/sbin/tcp-splice-ctl enable --cgroup /sys/fs/cgroup --ring-kbytes 256
 ```
 
 Because the ring is the sole data path (no TCP fallback), the size does **not**
