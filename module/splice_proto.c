@@ -117,7 +117,8 @@ static bool splice_recv_ready(struct sock *sk, struct tcp_splice_chan *s)
 	return splice_recv_deliverable(sk, s) ||
 	       READ_ONCE(sk->sk_err) ||
 	       (READ_ONCE(sk->sk_shutdown) & RCV_SHUTDOWN) ||
-	       !rcu_access_pointer(s->peer);
+	       READ_ONCE(s->unpaired);	/* torn-down pair; a not-yet-paired
+					 * (parked) channel keeps waiting */
 }
 
 static long splice_recv_wait(struct sock *sk, struct tcp_splice_chan *s,
@@ -211,10 +212,21 @@ static int splice_recvmsg_merge(struct sock *sk, struct tcp_splice_chan *s,
 		 */
 		rcu_read_lock();
 		peer = rcu_dereference(s->peer);
-		ring_ready = peer && splice_ring_has_data(s) &&
-			     READ_ONCE(peer->ring_active) &&
-			     (eof || !before(READ_ONCE(tcp_sk(sk)->copied_seq),
-					     READ_ONCE(peer->ring_seq)));
+		if (peer)
+			ring_ready = splice_ring_has_data(s) &&
+				     READ_ONCE(peer->ring_active) &&
+				     (eof || !before(READ_ONCE(tcp_sk(sk)->copied_seq),
+						     READ_ONCE(peer->ring_seq)));
+		else
+			/* peer == NULL: either torn down (->unpaired) or not paired
+			 * yet (parked). A torn-down peer may have written a final
+			 * message into our own ring and then closed; that data is
+			 * still valid, so drain it before reporting EOF (no further
+			 * startup TCP will arrive, so the ring_seq gate no longer
+			 * applies). A parked channel has no ring data and just waits.
+			 */
+			ring_ready = READ_ONCE(s->unpaired) &&
+				     splice_ring_has_data(s);
 		rcu_read_unlock();
 
 		if (ring_ready && skb_queue_empty(&sk->sk_receive_queue)) {
@@ -259,8 +271,8 @@ static int splice_recvmsg_merge(struct sock *sk, struct tcp_splice_chan *s,
 			err = -sk->sk_err;
 			break;
 		}
-		if (!rcu_access_pointer(s->peer))
-			break;			/* pair gone */
+		if (READ_ONCE(s->unpaired) && !splice_ring_has_data(s))
+			break;
 		if (signal_pending(current)) {
 			err = sock_intr_errno(timeo);
 			break;
@@ -541,6 +553,24 @@ static void splice_prot_unhash(struct sock *sk)
 		p->unhash(sk);
 }
 
+/* Some sockets are freed without ever going through close/disconnect/unhash -
+ * notably a passively-spliced child (we install at TCP_SYN_RECV) that is aborted
+ * or never accepted, which the stack tears down via ->destroy
+ * (inet_csk_destroy_sock). Without hooking ->destroy that path skips
+ * splice_teardown(), leaking the channel and the module reference taken in
+ * splice_install(). teardown is idempotent (xchg), so this is just one more entry
+ * point; for a normally-closed socket sk_prot is already restored to base by the
+ * time ->destroy runs, so this override is not even reached.
+ */
+static void splice_prot_destroy(struct sock *sk)
+{
+	struct proto *base = splice_teardown(sk);
+	struct proto *p = base ? base : READ_ONCE(sk->sk_prot);
+
+	if (p->destroy)
+		p->destroy(sk);
+}
+
 /* ---- proto clone registry + install ----------------------------------- */
 
 struct splice_clone {
@@ -589,6 +619,7 @@ static struct proto *clone_get(struct proto *base)
 	clone->close		= splice_prot_close;
 	clone->disconnect	= splice_prot_disconnect;
 	clone->unhash		= splice_prot_unhash;
+	clone->destroy		= splice_prot_destroy;
 	clone->sock_is_readable	= splice_prot_is_readable;
 	new->base  = base;
 	new->clone = clone;

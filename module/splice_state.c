@@ -164,10 +164,17 @@ void chan_unpair(struct tcp_splice_chan *chan)
 	peer = rcu_dereference_protected(chan->peer,
 					 lockdep_is_held(&splice_tbl_lock));
 	if (peer) {
+		/* Mark both ends as torn down (not merely unpaired-at-setup) so the
+		 * receive path reports EOF here but waits on a channel that has not
+		 * paired yet.
+		 */
+		WRITE_ONCE(chan->unpaired, true);
 		rcu_assign_pointer(chan->peer, NULL);
 		if (rcu_dereference_protected(peer->peer,
-				lockdep_is_held(&splice_tbl_lock)) == chan)
+				lockdep_is_held(&splice_tbl_lock)) == chan) {
+			WRITE_ONCE(peer->unpaired, true);
 			rcu_assign_pointer(peer->peer, NULL);
+		}
 	}
 	spin_unlock_bh(&splice_tbl_lock);
 

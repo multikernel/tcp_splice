@@ -95,6 +95,11 @@ struct tcp_splice_chan {
 	struct splice_key		pair_key;   /* key in the pairing registry */
 	struct hlist_node		pair_node;  /* by-key pairing registry */
 	bool				in_pairtbl; /* linked into pairing registry */
+	bool				unpaired;   /* peer was set then torn down;
+						     * distinguishes a dead pair from
+						     * a not-yet-paired (parked) one,
+						     * so the latter waits at setup
+						     * instead of reporting EOF */
 	struct rcu_head			rcu;
 
 	unsigned long	ring_head ____cacheline_aligned_in_smp;
