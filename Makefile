@@ -20,7 +20,7 @@ ctl: bpf
 	$(MAKE) -C ctl
 
 test:
-	./tests/test_loopback.sh
+	./tests/test_loopback.py
 
 # Package the already-built module/ctl into a .deb (fixed/appliance kernel).
 # Build (make module ctl) and sign the module first; see packaging/README.md.
