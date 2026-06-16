@@ -19,8 +19,17 @@ bpf:
 ctl: bpf
 	$(MAKE) -C ctl
 
+# Run the data-path tests. Load the module and configure tcp-splice-ctl (so the
+# tests' loopback flows are spliced) before `make test`; the tests do not.
 test:
-	./tests/test_loopback.py
+	@fail=0; \
+	for t in "tests/test_loopback.py" "tests/poll.py blocking" \
+	         "tests/poll.py select" "tests/churn.py"; do \
+		echo "==> $$t"; \
+		python3 $$t || fail=1; \
+	done; \
+	if [ $$fail -ne 0 ]; then echo "make test: FAILED" >&2; exit 1; fi; \
+	echo "make test: all passed"
 
 # Package the already-built module/ctl into a .deb (fixed/appliance kernel).
 # Build (make module ctl) and sign the module first; see packaging/README.md.
