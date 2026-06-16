@@ -23,8 +23,9 @@ ctl: bpf
 # tests' loopback flows are spliced) before `make test`; the tests do not.
 test:
 	@fail=0; \
-	for t in "tests/test_loopback.py" "tests/poll.py blocking" \
-	         "tests/poll.py select" "tests/churn.py"; do \
+	for t in "tests/test_loopback.py" "tests/test_bidir.py" \
+	         "tests/poll.py blocking" "tests/poll.py select" \
+	         "tests/churn.py"; do \
 		echo "==> $$t"; \
 		python3 $$t || fail=1; \
 	done; \
